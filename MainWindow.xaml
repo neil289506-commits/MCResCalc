@@ -1,0 +1,279 @@
+<Window x:Class="MinecraftResourceCalculator.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:models="clr-namespace:MinecraftResourceCalculator.Models"
+        xmlns:views="clr-namespace:MinecraftResourceCalculator.Views"
+        Title="Minecraft 資源計算機" Height="820" Width="1240" MinHeight="620" MinWidth="980"
+        WindowStartupLocation="CenterScreen">
+
+    <Window.Resources>
+        <HierarchicalDataTemplate DataType="{x:Type models:MaterialNode}" ItemsSource="{Binding Children}">
+            <StackPanel Orientation="Horizontal" Margin="0,2">
+                <Image Source="{Binding Icon}" Width="20" Height="20" Margin="0,0,8,0"
+                       RenderOptions.BitmapScalingMode="NearestNeighbor"/>
+                <TextBlock Text="{Binding SummaryText}" VerticalAlignment="Center"/>
+            </StackPanel>
+        </HierarchicalDataTemplate>
+    </Window.Resources>
+
+    <Grid Margin="16">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <!-- 頂端：版本選擇 -->
+        <Border Grid.Row="0" Style="{StaticResource Card}" Margin="0,0,0,12">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                    <TextBlock Text="⛏" FontSize="24" Margin="0,0,10,0" Foreground="{StaticResource GoldBrush}"/>
+                    <StackPanel>
+                        <TextBlock Text="Minecraft 資源計算機" FontSize="18" FontWeight="Bold"/>
+                        <TextBlock Text="輸入想製作的物品與數量，自動展開整棵合成樹並統計最終需要的原始材料"
+                                   Foreground="{StaticResource TextSecondaryBrush}" FontSize="12"/>
+                    </StackPanel>
+                </StackPanel>
+
+                <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                    <ComboBox Width="220" Margin="0,0,8,0"
+                              ItemsSource="{Binding Versions}" SelectedItem="{Binding SelectedVersion}"
+                              DisplayMemberPath="Id"/>
+                    <Button Content="重新整理版本" Style="{StaticResource GhostButton}" Margin="0,0,8,0"
+                            Command="{Binding LoadVersionsCommand}"/>
+                    <Button Content="載入配方資料" Margin="0,0,12,0"
+                            Command="{Binding LoadRecipeDataCommand}"/>
+                    <CheckBox Content="English names" IsChecked="{Binding UseEnglish}" VerticalAlignment="Center"/>
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <!-- 狀態列 / 進度條 -->
+        <Border Grid.Row="1" Style="{StaticResource Card}" Margin="0,0,0,12">
+            <StackPanel>
+                <TextBlock Text="{Binding StatusText}" TextWrapping="Wrap"/>
+                <ProgressBar Value="{Binding Progress, Mode=OneWay}" Minimum="0" Maximum="1" Margin="0,8,0,0"
+                             Visibility="{Binding IsBusy, Converter={StaticResource BoolToVisConverter}}"/>
+            </StackPanel>
+        </Border>
+
+        <!-- 主要內容 -->
+        <Grid Grid.Row="2">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="380"/>
+                <ColumnDefinition Width="12"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+
+            <!-- 左側：搜尋 + 待計算清單 -->
+            <Border Style="{StaticResource Card}">
+                <DockPanel LastChildFill="True">
+                    <TextBlock DockPanel.Dock="Top" Text="搜尋可製作物品" FontWeight="SemiBold" Margin="0,0,0,8"/>
+                    <TextBox DockPanel.Dock="Top" Margin="0,0,0,4"
+                             Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}"
+                             ToolTip="輸入開頭字母，例如輸入 o 會列出所有以 o 開頭、且有配方可以製作的物品"/>
+
+                    <TextBlock DockPanel.Dock="Top" Text="搜尋結果（點選以選取）" FontSize="11"
+                               Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,4"
+                               Visibility="{Binding Suggestions.Count, Converter={StaticResource CountToVisConverter}}"/>
+                    <ListBox DockPanel.Dock="Top" Height="150" Margin="0,0,0,8"
+                             ItemsSource="{Binding Suggestions}" SelectedItem="{Binding SelectedSuggestion}">
+                        <ListBox.ItemTemplate>
+                            <DataTemplate>
+                                <StackPanel Orientation="Horizontal">
+                                    <Image Source="{Binding Icon}" Width="20" Height="20" Margin="0,0,8,0"
+                                           RenderOptions.BitmapScalingMode="NearestNeighbor"/>
+                                    <TextBlock Text="{Binding DisplayName}" VerticalAlignment="Center"/>
+                                    <TextBlock Text="{Binding ItemId}" FontSize="10" Margin="8,0,0,0"
+                                               Foreground="{StaticResource TextSecondaryBrush}" VerticalAlignment="Center"/>
+                                </StackPanel>
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
+
+                    <Grid DockPanel.Dock="Top" Margin="0,0,0,14">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="70"/>
+                            <ColumnDefinition Width="90"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Text="{Binding SelectedSuggestion.DisplayName}" VerticalAlignment="Center"
+                                   TextTrimming="CharacterEllipsis" Foreground="{StaticResource TextSecondaryBrush}"/>
+                        <TextBox Grid.Column="1" Margin="6,0"
+                                 Text="{Binding QuantityToAdd, UpdateSourceTrigger=PropertyChanged}"/>
+                        <Button Grid.Column="2" Content="加入清單" Command="{Binding AddToBatchCommand}"/>
+                    </Grid>
+
+                    <TextBlock DockPanel.Dock="Top" Text="待計算清單" FontWeight="SemiBold" Margin="0,0,0,4"/>
+                    <ListBox ItemsSource="{Binding BatchList}" MinHeight="140">
+                        <ListBox.ItemTemplate>
+                            <DataTemplate>
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="60"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Text="{Binding DisplayName}" VerticalAlignment="Center"
+                                               TextTrimming="CharacterEllipsis"/>
+                                    <TextBox Grid.Column="1" Margin="6,0"
+                                             Text="{Binding Quantity, UpdateSourceTrigger=PropertyChanged}"/>
+                                    <Button Grid.Column="2" Content="移除" Style="{StaticResource DangerButton}"
+                                            Command="{Binding DataContext.RemoveFromBatchCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                            CommandParameter="{Binding}"/>
+                                </Grid>
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
+                </DockPanel>
+            </Border>
+
+            <!-- 右側：計算結果 -->
+            <Border Grid.Column="2" Style="{StaticResource Card}">
+                <DockPanel LastChildFill="True">
+                    <Button DockPanel.Dock="Top" Content="計算所需原始材料" HorizontalAlignment="Left"
+                            Margin="0,0,0,12" Command="{Binding CalculateCommand}"/>
+
+                    <!-- 物品預覽：點選左側搜尋結果／原始材料清單／合成樹節點都會更新這裡。
+                         3D 立方體只有「立體方塊外觀」的物品才會顯示，可以用滑鼠拖曳旋轉；
+                         其餘工具/食物這類本來就是平面貼圖的物品維持 2D 圖示，跟遊戲裡的外觀一致。 -->
+                    <Border DockPanel.Dock="Top" Style="{StaticResource Card}" Margin="0,0,0,12" Padding="10">
+                        <StackPanel Orientation="Horizontal">
+                            <Grid Width="90" Height="90" Margin="0,0,14,0">
+                                <Image Source="{Binding PreviewIcon}" Stretch="Uniform"
+                                       RenderOptions.BitmapScalingMode="NearestNeighbor"
+                                       Visibility="{Binding PreviewIsBlock, Converter={StaticResource InverseBoolToVisConverter}}"/>
+                                <views:Block3DPreview TopTexture="{Binding PreviewTopTexture}"
+                                                       SideTexture="{Binding PreviewSideTexture}"
+                                                       BottomTexture="{Binding PreviewBottomTexture}"
+                                                       Visibility="{Binding PreviewIsBlock, Converter={StaticResource BoolToVisConverter}}"/>
+                            </Grid>
+                            <StackPanel VerticalAlignment="Center">
+                                <TextBlock Text="{Binding PreviewDisplayName}" FontWeight="Bold" FontSize="15"/>
+                                <TextBlock Text="{Binding PreviewItemId}" FontSize="11" Foreground="{StaticResource TextSecondaryBrush}"/>
+                                <TextBlock Text="立體方塊模型，可拖曳旋轉查看" FontSize="10" Margin="0,4,0,0"
+                                           Foreground="{StaticResource TextSecondaryBrush}"
+                                           Visibility="{Binding PreviewIsBlock, Converter={StaticResource BoolToVisConverter}}"/>
+                            </StackPanel>
+                        </StackPanel>
+                    </Border>
+
+                    <TabControl>
+                        <TabItem Header="原始材料統計">
+                            <ListBox ItemsSource="{Binding RawMaterialRows}" SelectedItem="{Binding SelectedRawMaterialRow}">
+                                <ListBox.ItemTemplate>
+                                    <DataTemplate>
+                                        <Grid Margin="0,3">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="Auto"/>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="Auto"/>
+                                                <ColumnDefinition Width="Auto"/>
+                                            </Grid.ColumnDefinitions>
+                                            <Image Source="{Binding Icon}" Width="22" Height="22" Margin="0,0,10,0"
+                                                   RenderOptions.BitmapScalingMode="NearestNeighbor"/>
+                                            <TextBlock Grid.Column="1" Text="{Binding DisplayName}" VerticalAlignment="Center"/>
+                                            <TextBlock Grid.Column="2" Text="{Binding Quantity}" FontWeight="Bold"
+                                                       Foreground="{StaticResource GoldBrush}" Margin="0,0,10,0"
+                                                       VerticalAlignment="Center"/>
+                                            <TextBlock Grid.Column="3" Text="{Binding StacksText}" FontSize="11"
+                                                       Foreground="{StaticResource TextSecondaryBrush}" VerticalAlignment="Center"/>
+                                        </Grid>
+                                    </DataTemplate>
+                                </ListBox.ItemTemplate>
+                            </ListBox>
+                        </TabItem>
+
+                        <TabItem Header="完整合成樹">
+                            <TreeView x:Name="ResultTreeView" ItemsSource="{Binding ResultTree}"
+                                      SelectedItemChanged="ResultTreeView_SelectedItemChanged"/>
+                        </TabItem>
+
+                        <TabItem Header="合成教學">
+                            <ScrollViewer VerticalScrollBarVisibility="Auto">
+                                <ItemsControl ItemsSource="{Binding CraftingSteps}">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <Border Style="{StaticResource Card}" Margin="0,0,0,10" Padding="12">
+                                                <StackPanel>
+                                                    <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
+                                                        <Image Source="{Binding ResultIcon}" Width="24" Height="24" Margin="0,0,8,0"
+                                                               RenderOptions.BitmapScalingMode="NearestNeighbor"/>
+                                                        <TextBlock VerticalAlignment="Center" FontWeight="SemiBold">
+                                                            <Run Text="{Binding ResultDisplayName, Mode=OneWay}"/>
+                                                            <Run Text=" × "/>
+                                                            <Run Text="{Binding ResultCount, Mode=OneWay}" Foreground="{StaticResource GoldBrush}"/>
+                                                        </TextBlock>
+                                                        <TextBlock Text="{Binding Station}" Margin="10,0,0,0" FontSize="11"
+                                                                   Foreground="{StaticResource TextSecondaryBrush}" VerticalAlignment="Center"/>
+                                                    </StackPanel>
+
+                                                    <!-- 工作台配方：3x3 合成格，跟遊戲畫面一致 -->
+                                                    <ItemsControl ItemsSource="{Binding GridSlots}"
+                                                                  Visibility="{Binding IsGrid, Converter={StaticResource BoolToVisConverter}}">
+                                                        <ItemsControl.ItemsPanel>
+                                                            <ItemsPanelTemplate>
+                                                                <UniformGrid Rows="3" Columns="3" Width="150" Height="150"/>
+                                                            </ItemsPanelTemplate>
+                                                        </ItemsControl.ItemsPanel>
+                                                        <ItemsControl.ItemTemplate>
+                                                            <DataTemplate>
+                                                                <Border Background="{StaticResource PanelAltBrush}"
+                                                                        BorderBrush="{StaticResource BorderBrush2}"
+                                                                        BorderThickness="1" Margin="2" ToolTip="{Binding DisplayName}">
+                                                                    <Image Source="{Binding Icon}" Margin="4"
+                                                                           RenderOptions.BitmapScalingMode="NearestNeighbor"/>
+                                                                </Border>
+                                                            </DataTemplate>
+                                                        </ItemsControl.ItemTemplate>
+                                                    </ItemsControl>
+
+                                                    <!-- 非工作台配方（熔煉/切石/鍛造台）：線性格子＋標籤 -->
+                                                    <ItemsControl ItemsSource="{Binding LinearSlots}"
+                                                                  Visibility="{Binding IsGrid, Converter={StaticResource InverseBoolToVisConverter}}">
+                                                        <ItemsControl.ItemsPanel>
+                                                            <ItemsPanelTemplate>
+                                                                <StackPanel Orientation="Horizontal"/>
+                                                            </ItemsPanelTemplate>
+                                                        </ItemsControl.ItemsPanel>
+                                                        <ItemsControl.ItemTemplate>
+                                                            <DataTemplate>
+                                                                <StackPanel Margin="0,0,12,0">
+                                                                    <Border Width="44" Height="44" Background="{StaticResource PanelAltBrush}"
+                                                                            BorderBrush="{StaticResource BorderBrush2}" BorderThickness="1"
+                                                                            ToolTip="{Binding DisplayName}">
+                                                                        <Image Source="{Binding Icon}" Margin="5"
+                                                                               RenderOptions.BitmapScalingMode="NearestNeighbor"/>
+                                                                    </Border>
+                                                                    <TextBlock Text="{Binding Label}" FontSize="10" HorizontalAlignment="Center"
+                                                                               Foreground="{StaticResource TextSecondaryBrush}" Margin="0,2,0,0"/>
+                                                                </StackPanel>
+                                                            </DataTemplate>
+                                                        </ItemsControl.ItemTemplate>
+                                                    </ItemsControl>
+
+                                                    <TextBlock Text="{Binding ExtraNote}" FontSize="11" Margin="0,10,0,0"
+                                                               Foreground="{StaticResource GoldBrush}" TextWrapping="Wrap"
+                                                               Visibility="{Binding ExtraNote, Converter={StaticResource StringToVisConverter}}"/>
+                                                </StackPanel>
+                                            </Border>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </ScrollViewer>
+                        </TabItem>
+
+                        <TabItem Header="警告訊息">
+                            <ListBox ItemsSource="{Binding Warnings}" Foreground="{StaticResource DangerBrush}"/>
+                        </TabItem>
+                    </TabControl>
+                </DockPanel>
+            </Border>
+        </Grid>
+    </Grid>
+</Window>

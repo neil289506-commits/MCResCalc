@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <LangVersion>latest</LangVersion>
+    <AssemblyName>MinecraftResourceCalculator</AssemblyName>
+    <RootNamespace>MinecraftResourceCalculator</RootNamespace>
+    <ApplicationHighDpiMode>PerMonitorV2</ApplicationHighDpiMode>
+    <InvariantGlobalization>false</InvariantGlobalization>
+  </PropertyGroup>
+
+  <!--
+    刻意不加任何 PackageReference：只用 BCL 內建的
+    System.Net.Http / System.Text.Json / System.IO.Compression，
+    在你機器上開 VS2022 (.NET 8 SDK + ".NET 桌面開發" 工作負載)
+    應該可以直接還原、零 NuGet 依賴、離線也能建置。
+  -->
+
+</Project>
